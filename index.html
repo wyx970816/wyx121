@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>沪深300 方向预测系统 · 双模型对比</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="dot"></span>
+    <div>
+      <h1>沪深300 方向预测系统</h1>
+      <p>CNN_Stock（论文复现）× MACD 策略模型（新训练）· 次日涨跌二分类</p>
+    </div>
+  </div>
+  <div class="status" id="status">
+    <button id="backendBtn" class="ghost" title="设置实时后端地址">设置后端</button>
+    <span class="pulse"></span>
+    <span id="statusText">连接中…</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel picker">
+    <div class="picker-row">
+      <label for="dateInput">选择要预测的日期</label>
+      <div class="date-controls">
+        <button id="prevBtn" class="ghost" title="前一交易日">‹</button>
+        <input type="date" id="dateInput">
+        <button id="nextBtn" class="ghost" title="后一交易日">›</button>
+      </div>
+      <button id="runBtn" class="primary">运行预测</button>
+      <span class="hint" id="dataHint"></span>
+    </div>
+    <div class="quick" id="quickDates"></div>
+  </section>
+
+  <section class="grid">
+    <div class="panel result">
+      <div class="result-head">
+        <div>
+          <h2 id="resultDate">—</h2>
+          <p class="sub" id="resultMeta"></p>
+        </div>
+        <div class="verdict" id="verdict"></div>
+      </div>
+
+      <div class="models" id="modelCards"></div>
+
+      <div class="actual-box" id="actualBox"></div>
+    </div>
+
+    <aside class="panel side">
+      <h3>模型样本外表现</h3>
+      <p class="sub">2026-01-05 → 2026-10-30，198 个交易日</p>
+      <div id="metricTable" class="metrics"></div>
+      <div class="note">
+        <strong>口径说明</strong>
+        <ul>
+          <li>平盘按上涨计（作业口径）</li>
+          <li>“超额”= 准确率 − 同期全涨基线</li>
+          <li>概率为 10 个独立训练模型的均值（CNN）</li>
+          <li>判定阈值：CNN 用验证集 Youden's J；MACD 模型用固定 0.5 + balanced 权重</li>
+          <li>测试集 2026-01→10 不参与任何调参</li>
+        </ul>
+      </div>
+    </aside>
+  </section>
+
+  <section class="panel">
+    <div class="section-head">
+      <h3>逐日预测留痕（样本外滚动）</h3>
+      <div class="tabs" id="rangeTabs">
+        <button data-range="recent" class="tab active">近 30 日</button>
+        <button data-range="test" class="tab">测试集</button>
+        <button data-range="all" class="tab">全部样本</button>
+      </div>
+      <div class="tabs" id="modelTabs">
+        <button data-model="M2_cnn_full" class="tab active">CNN_Stock</button>
+        <button data-model="M4_macd_logit" class="tab">MACD 策略模型</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="historyTable">
+        <thead>
+          <tr>
+            <th>预测日</th><th>实际日</th><th>预测方向</th><th>概率</th>
+            <th>实际涨跌</th><th>实际方向</th><th>判定</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="sub" id="historySummary"></p>
+    <div class="split-note" id="modeNote"></div>
+    <div class="split-note">
+      <strong>为什么表里近 30 日命中率和侧栏整段样本外不一样？</strong>
+      侧栏是 2026-01→10 整段样本外（198 天）的一次性评估；表里是最近 30 个交易日的滚动结果。
+      近期市场状态与训练区间不同，命中率下滑是真实信号，<b>不能只看一个数字</b>——作业要求逐日对比的正是这件事。
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span>数据源：东方财富（指数/两融/成分股）· 数据随访问实时拉取</span>
+  <span id="footTime"></span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
