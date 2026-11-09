@@ -1,0 +1,57 @@
+name: 每日刷新沪深300预测
+
+on:
+  schedule:
+    - cron: '30 8 * * 1-5'      # UTC 08:30 = 北京 16:30，周一至周五
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  ASSET_TAG: v2                 # 模型权重所在的 Release 标签
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: 检出仓库
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install --no-cache-dir numpy pandas
+
+      - name: 下载模型权重与脚本
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p refresh
+          BASE="https://github.com/${REPO}/releases/download/${ASSET_TAG}"
+          curl -fsSL -o refresh/model_weights.npz "${BASE}/model_weights.npz"
+          curl -fsSL -o refresh/model_meta.json   "${BASE}/model_meta.json"
+          curl -fsSL -o refresh/refresh.py        "${BASE}/refresh.py"
+          ls -lh refresh/
+
+      - name: 拉取行情并生成预测
+        run: >-
+          python refresh/refresh.py --repo .
+          --weights refresh/model_weights.npz
+          --meta refresh/model_meta.json
+
+      - name: 提交更新
+        run: |
+          git config user.name  "hs300-bot"
+          git config user.email "hs300-bot@users.noreply.github.com"
+          git add data
+          if git diff --staged --quiet; then
+            echo "没有新数据，跳过提交"
+          else
+            git commit -m "data: 自动刷新 $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
