@@ -247,3 +247,34 @@ tbody tr:hover { background: #101a2c; }
   .metric-row span:last-child { text-align: left; font-size: 11px; }
   .metrics .metric-row b { font-size: 13px; }
 }
+
+/* ---------------- 小组成员 ---------------- */
+.brand .team {
+  color: #b9c6dd;
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 3px;
+  letter-spacing: .2px;
+}
+@media (max-width: 900px) {
+  .brand .team { font-size: 10.5px; margin-top: 2px; }
+}
+
+/* 窄屏：标题区允许换行，避免成员名单被裁掉 */
+@media (max-width: 900px) {
+  .brand > div { min-width: 0; flex: 1 1 auto; }
+  .brand h1, .brand p, .brand .team {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+/* 窄屏：grid 子项默认 min-width:auto 会被表格撑宽，导致整页横向溢出 */
+@media (max-width: 900px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); width: 100%; max-width: 100%; }
+  .wrap > *, .grid > *, .panel, .side { min-width: 0; max-width: 100%; }
+  .table-wrap { max-width: 100%; overflow-x: auto; }
+  table { min-width: 0; width: 100%; }
+  thead th, tbody td { padding: 8px 6px; font-size: 11px; }
+}
