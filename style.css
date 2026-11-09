@@ -171,3 +171,79 @@ tbody tr:hover { background: #101a2c; }
   display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 6px;
   font-size: 10.5px; background: #1c2b4a; color: #9dc0ff;
 }
+
+/* ---------------- 小屏适配 ---------------- */
+@media (max-width: 900px) {
+  .topbar {
+    padding: 12px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+    position: static;
+  }
+  .brand h1 { font-size: 16px; }
+  .brand p { font-size: 11px; }
+  .status { font-size: 11px; flex-wrap: wrap; gap: 6px; }
+  .status .ghost { padding: 6px 9px; font-size: 11px; }
+  .wrap { padding: 0 12px; margin: 14px auto; gap: 12px; }
+  .panel { padding: 14px 14px; border-radius: 12px; }
+  .models { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
+  .picker-row { gap: 10px; }
+  .picker label { width: 100%; }
+  .date-controls { flex: 1; }
+  input[type=date] { width: 100%; }
+  button.primary { width: 100%; }
+  .quick { gap: 6px; }
+  .actual-box { grid-template-columns: 1fr 1fr; font-size: 12px; }
+  .model-card .dir { font-size: 28px; }
+  .section-head { flex-wrap: wrap; gap: 8px; }
+  .tabs { flex-wrap: wrap; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 640px; }
+  .split-note { font-size: 11.5px; }
+  .foot { position: static; padding: 10px 14px; flex-wrap: wrap; gap: 6px; font-size: 10.5px; }
+  body { padding-bottom: 0; }
+}
+
+@media (max-width: 480px) {
+  .brand h1 { font-size: 15px; }
+  .actual-box { grid-template-columns: 1fr; }
+  .metric-row { font-size: 11.5px; }
+}
+
+/* ---------------- 窄屏防溢出 ---------------- */
+@media (max-width: 900px) {
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .wrap, .panel, .model-card, .actual-box, .metric-row,
+  .picker-row, .section-head, .date-controls, .quick { min-width: 0; }
+  .status, #statusText, .brand, .brand p, .hint { white-space: normal; overflow-wrap: anywhere; }
+  .status { justify-content: flex-start; }
+  #statusText { display: inline-block; max-width: 100%; }
+  .topbar { overflow: hidden; }
+  .brand { flex: 1 1 100%; }
+  .actual-box { grid-template-columns: 1fr !important; }
+  .metrics .metric-row { flex-wrap: wrap; gap: 2px 8px; }
+  .metric-row span:last-child { text-align: right; }
+  .table-wrap { max-width: 100%; }
+  .foot span { max-width: 100%; overflow-wrap: anywhere; }
+}
+
+@media (max-width: 900px) {
+  .topbar { display: block; }
+  .brand { margin-bottom: 8px; }
+  #status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  #statusText { font-size: 10.5px; line-height: 1.4; display: block; width: 100%; }
+  .result-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .verdict { align-self: flex-start; font-size: 11.5px; padding: 5px 10px; }
+  .model-card .name { flex-wrap: wrap; gap: 4px; }
+  .panel h2 { font-size: 15px; }
+  .section-head h3 { font-size: 13.5px; }
+  .tabs .tab { padding: 5px 9px; font-size: 11px; }
+  .foot { display: block; line-height: 1.6; }
+}
+
+@media (max-width: 900px) {
+  .metric-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .metric-row span:last-child { text-align: left; font-size: 11px; }
+  .metrics .metric-row b { font-size: 13px; }
+}

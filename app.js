@@ -123,55 +123,89 @@ async function boot() {
   state.apiBase = await resolveApiBase();
   const param = new URLSearchParams(location.search).get('source');
 
-  if (param === 'api') {
-    state.mode = 'api';
-  } else if (param === 'static') {
-    state.mode = 'static';
-  } else {
-    // probe the backend; fall back to the static snapshot if unreachable.
-    // the tunnel's first TLS handshake can take seconds, so retry once.
-    let ok = false;
-    for (const t of [8000, 12000]) {
-      try {
-        state.health = await jget('/api/health', t);
-        ok = true;
-        break;
-      } catch (e) { /* retry */ }
-    }
-    state.mode = ok ? 'api' : 'static';
-  }
-
+  // 1) always paint the static snapshot first: it is local, so the page is
+  //    usable even when the tunnel is dead or the network is slow
   try {
-    if (state.mode === 'api') {
-      state.health = state.health || await jget('/api/health');
-      state.meta = await jget('/api/meta');
-      state.dates = await getDates();
-      setStatus(`实时后端 · 最新交易日 ${state.health.latest_data}`, true);
-    } else {
-      const mf = await jget(assetUrl('/manifest.json'));
-      state.meta = await jget(assetUrl('/meta.json'));
-      state.dates = await getDates();
-      state.health = { latest_data: mf.built_with_data_until };
-      state.offlineUntil = mf.built_with_data_until;
-      setStatus(`静态快照 · 构建于 ${mf.built_at.slice(0, 16)}（截至 ${mf.built_with_data_until}）`, false);
-    }
+    await initStatic();
+  } catch (e) {
+    setStatus('静态数据加载失败：' + e.message, false);
+    return;
+  }
+  renderShell();
+  await run();
+  loadHistory();
+  renderModeNote();
+  renderBackendBtn();
 
-    $('#dataHint').textContent =
-      `${state.dates[0]} → ${state.dates[state.dates.length - 1]}（共 ${state.dates.length} 个交易日）`;
-    $('#dateInput').min = state.dates[0];
-    $('#dateInput').max = state.dates[state.dates.length - 1];
-    $('#dateInput').value = state.dates[state.dates.length - 2] || state.dates[state.dates.length - 1];
-
-    renderQuick();
+  // 2) then try to upgrade to the live backend in the background
+  if (param === 'static') return;
+  const ok = await probeBackend(param === 'api');
+  if (!ok) {
+    if (param === 'api') setStatus('后端不可达，已回退到静态快照', false);
+    return;
+  }
+  try {
+    state.mode = 'api';
+    state.health = await jget('/api/health');
+    state.meta = await jget('/api/meta');
+    state.dates = await getDates();
+    renderShell();
     renderMetrics();
-    state.range = 'recent';
-    await run();          // main cards first
-    loadHistory();        // table loads in the background, page never blocks
+    await run();
+    loadHistory();
     renderModeNote();
     renderBackendBtn();
   } catch (e) {
-    setStatus('初始化失败：' + e.message, false);
+    state.mode = 'static';
   }
+}
+
+async function initStatic() {
+  state.mode = 'static';
+  const mf = await jget(assetUrl('/manifest.json'));
+  state.meta = await jget(assetUrl('/meta.json'));
+  state.dates = await getDates();
+  state.health = { latest_data: mf.built_with_data_until };
+  state.offlineUntil = mf.built_with_data_until;
+  setStatus(`静态快照 · 构建于 ${mf.built_at.slice(0, 16)}（截至 ${mf.built_with_data_until}）`, false);
+}
+
+async function probeBackend(force) {
+  // a quick tunnel that has not been refreshed for days is certainly dead;
+  // skip the wait unless the caller explicitly forced API mode
+  if (!force) {
+    try {
+      const rt = await jget(assetUrl('/runtime.json'), 2000);
+      if (rt && rt.updated_at) {
+        const ageH = (Date.now() - new Date(rt.updated_at.replace(' ', 'T')).getTime()) / 36e5;
+        if (ageH > 24) {
+          setStatus(`静态快照（后端地址已 ${Math.round(ageH)} 小时未更新，跳过连接）· 数据截至 ${state.offlineUntil}`, false);
+          return false;
+        }
+      }
+    } catch (e) { /* no hint */ }
+  }
+  for (const t of [4000, 6000]) {
+    try {
+      state.health = await jget('/api/health', t);
+      return true;
+    } catch (e) { /* retry */ }
+  }
+  return false;
+}
+
+function renderShell() {
+  const last = state.dates[state.dates.length - 1];
+  $('#dataHint').textContent =
+    `${state.dates[0]} → ${last}（共 ${state.dates.length} 个交易日）`;
+  $('#dateInput').min = state.dates[0];
+  $('#dateInput').max = last;
+  if (!$('#dateInput').value || !state.dates.includes($('#dateInput').value)) {
+    $('#dateInput').value = state.dates[state.dates.length - 2] || last;
+  }
+  renderQuick();
+  renderMetrics();
+  state.range = 'recent';
 }
 
 function renderBackendBtn() {
@@ -185,7 +219,9 @@ function renderModeNote() {
   const target = state.apiBase || '同源（本机）';
   if (state.mode === 'api') {
     box.innerHTML = `<b>当前模式：实时后端</b> 接口地址 <code>${target}</code>。
-      每次打开页面都会从东方财富拉最新交易日，缺失则自动入库并重算特征。`;
+      每次打开页面都会从东方财富拉最新交易日，缺失则自动入库并重算特征。
+      <br><b>部署说明</b>：前端在 GitHub Pages，实时预测由本机 FastAPI 经
+      Cloudflare Tunnel 暴露；后端不可达时页面自动回落到预计算快照，并标注截止日期。`;
   } else {
     box.innerHTML = `<b>当前模式：静态快照</b> 预测已预先计算并写入 <code>data/*.json</code>，
       因此无需后端即可长期在线。<b>局限</b>：数据只到 ${state.offlineUntil}。
