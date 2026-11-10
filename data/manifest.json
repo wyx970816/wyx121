@@ -1,9 +1,9 @@
 {
   "mode": "static",
-  "built_at": "2026-11-09 20:26:46",
-  "built_with_data_until": "2026-11-09",
+  "built_at": "2026-11-10 09:22:45",
+  "built_with_data_until": "2026-11-10",
   "first_predictable_date": "2021-04-02",
-  "n_dates": 1357,
+  "n_dates": 1358,
   "years": [
     "2021",
     "2022",
@@ -18,5 +18,6 @@
     "M3_cnn_no_sentiment"
   ],
   "window": 60,
-  "note": "静态包只包含截至 built_with_data_until 的数据；之后的新交易日需要联网 运行 FastAPI 后端（打开页面时加 ?source=api）才能实时拉取。"
+  "note": "静态包只包含截至 built_with_data_until 的数据；之后的新交易日需要联网 运行 FastAPI 后端（打开页面时加 ?source=api）才能实时拉取。",
+  "updated_by": "GitHub Actions daily refresh"
 }
