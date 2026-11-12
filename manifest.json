@@ -1,0 +1,22 @@
+{
+  "mode": "static",
+  "built_at": "2026-11-12 23:10:14",
+  "built_with_data_until": "2026-11-12",
+  "first_predictable_date": "2021-04-02",
+  "n_dates": 1360,
+  "years": [
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+    "2025",
+    "2026"
+  ],
+  "models": [
+    "M2_cnn_full",
+    "M4_macd_logit",
+    "M3_cnn_no_sentiment"
+  ],
+  "window": 60,
+  "note": "静态包只包含截至 built_with_data_until 的数据；之后的新交易日需要联网 运行 FastAPI 后端（打开页面时加 ?source=api）才能实时拉取。"
+}
