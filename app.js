@@ -30,6 +30,8 @@ const dirClass = (d) => (d === 1 ? 'up' : 'down');
 const DATA_ROOT = 'data';     // relative: works on Pages and locally
 
 async function resolveApiBase() {
+  // Candidate order: ?api= > runtime.json (server-side, freshest) >
+  // localStorage (may hold a dead URL from an earlier session) > same origin.
   const params = new URLSearchParams(location.search);
   const q = params.get('api');
   if (q) {
@@ -37,15 +39,15 @@ async function resolveApiBase() {
     localStorage.setItem('hs300_api_base', v);
     return v;
   }
-  const saved = localStorage.getItem('hs300_api_base');
-  if (saved) return saved.replace(/\/$/, '');
-  // runtime.json is written by tools/start_all.ps1 when the tunnel restarts,
-  // so the deployed page can follow the live backend without editing the page.
+  const out = [];
   try {
-    const rt = await jget(DATA_ROOT + '/runtime.json', 2500);
-    if (rt && rt.api) return String(rt.api).replace(/\/$/, '');
+    const rt = await jget(DATA_ROOT + '/runtime.json?t=' + Date.now(), 2500);
+    if (rt && rt.api) out.push(String(rt.api).replace(/\/$/, ''));
   } catch (e) { /* no runtime hint */ }
-  return '';
+  const saved = localStorage.getItem('hs300_api_base');
+  if (saved && !out.includes(saved.replace(/\/$/, ''))) out.push(saved.replace(/\/$/, ''));
+  out.push('');
+  return out;   // array of candidates; boot() probes them in order
 }
 
 function apiUrl(path) {
@@ -120,7 +122,9 @@ async function getHistory(model, limit) {
 
 /* ---------------- boot ---------------- */
 async function boot() {
-  state.apiBase = await resolveApiBase();
+  const bases = await resolveApiBase();
+  state.apiCandidates = Array.isArray(bases) ? bases : [bases];
+  state.apiBase = state.apiCandidates[0] || '';
   const param = new URLSearchParams(location.search).get('source');
 
   // 1) always paint the static snapshot first: it is local, so the page is
@@ -171,26 +175,27 @@ async function initStatic() {
 }
 
 async function probeBackend(force) {
-  // a quick tunnel that has not been refreshed for days is certainly dead;
-  // skip the wait unless the caller explicitly forced API mode
-  if (!force) {
-    try {
-      const rt = await jget(assetUrl('/runtime.json'), 2000);
-      if (rt && rt.updated_at) {
-        const ageH = (Date.now() - new Date(rt.updated_at.replace(' ', 'T')).getTime()) / 36e5;
-        if (ageH > 24) {
-          setStatus(`静态快照（后端地址已 ${Math.round(ageH)} 小时未更新，跳过连接）· 数据截至 ${state.offlineUntil}`, false);
-          return false;
+  const cands = Array.isArray(state.apiCandidates) && state.apiCandidates.length
+    ? state.apiCandidates : [''];
+  const tried = [];
+  for (const base of cands) {
+    const label = base || '(同源)';
+    for (const t of [4000, 6000]) {
+      try {
+        const url = (base || '') + '/api/health';
+        const r = await fetch(url, { signal: AbortSignal.timeout(t), cache: 'no-store' });
+        const j = await r.json();
+        if (j && j.status === 'ok') {
+          state.apiBase = base;
+          state.health = j;
+          state.probeLog = `已连接 ${label}`;
+          return true;
         }
-      }
-    } catch (e) { /* no hint */ }
+      } catch (e) { /* next attempt */ }
+    }
+    tried.push(label);
   }
-  for (const t of [4000, 6000]) {
-    try {
-      state.health = await jget('/api/health', t);
-      return true;
-    } catch (e) { /* retry */ }
-  }
+  state.probeLog = '全部不可达：' + tried.join(' / ');
   return false;
 }
 
@@ -223,10 +228,12 @@ function renderModeNote() {
       <br><b>部署说明</b>：前端在 GitHub Pages，实时预测由本机 FastAPI 经
       Cloudflare Tunnel 暴露；后端不可达时页面自动回落到预计算快照，并标注截止日期。`;
   } else {
+    const why = state.probeLog
+      ? `<br><span style="color:#f59e0b">探测结果：${state.probeLog}</span>` : '';
     box.innerHTML = `<b>当前模式：静态快照</b> 预测已预先计算并写入 <code>data/*.json</code>，
       因此无需后端即可长期在线。<b>局限</b>：数据只到 ${state.offlineUntil}。
       需要最新数据时，点右上角「设置后端」，填入运行中的 FastAPI 地址
-      （本机 <code>http://127.0.0.1:8000</code> 或 Cloudflare Tunnel 的 https 地址）。`;
+      （本机 <code>http://127.0.0.1:8000</code> 或 Cloudflare Tunnel 的 https 地址）。${why}`;
   }
 }
 
